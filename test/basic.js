@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const extend = require('xtend');
-const assert = require('assert');
+const { expect } = require('chai');
 const multer = require('multer');
 const stream = require('stream');
 const FormData = require('form-data');
@@ -49,7 +49,7 @@ function submitForm(multerObj, form, cb) {
 
 describe('Multer S3', () => {
   it('is exposed as a function', () => {
-    assert.equal(typeof multerS3, 'function');
+    expect(typeof multerS3m, 'function');
   });
 
   INVALID_OPTIONS.forEach(testCase => {
@@ -58,34 +58,38 @@ describe('Multer S3', () => {
         multerS3(extend(VALID_OPTIONS, testCase[1]));
       }
 
-      assert.throws(testBody, TypeError);
+      expect(testBody).to.throw(TypeError);
     });
   });
 
   it('upload files', done => {
     const s3 = mockS3();
     const form = new FormData();
-    const storage = multerS3({ s3, bucket: 'test' });
+    const bucket = 'test';
+    const storage = multerS3({ s3, bucket });
     const upload = multer({ storage });
     const parser = upload.single('image');
-    const image = fs.createReadStream(
-      path.join(__dirname, 'files', 'ffffff.png')
-    );
+    const filename = 'test.jpeg';
+    const image = fs.createReadStream(path.join(__dirname, 'files', filename));
+    const stats = fs.statSync(image.path);
 
     form.append('name', 'Multer');
     form.append('image', image);
 
     submitForm(parser, form, (err, req) => {
-      assert.ifError(err);
+      // eslint-disable-next-line no-unused-expressions
+      expect(err).to.be.undefined;
 
-      assert.equal(req.body.name, 'Multer');
+      console.log('Compressed file size:', req.file.size);
+      console.log('Compression ratio:', stats.size / req.file.size);
 
-      assert.equal(req.file.fieldname, 'image');
-      assert.equal(req.file.originalname, 'ffffff.png');
-      assert.equal(req.file.size, 68);
-      assert.equal(req.file.bucket, 'test');
-      assert.equal(req.file.etag, 'mock-etag');
-      assert.equal(req.file.location, 'mock-location');
+      expect(req.body.name).to.equal('Multer');
+      expect(req.file.fieldname).to.equal('image');
+      expect(req.file.originalname).to.equal(filename);
+      expect(req.file.size).to.be.lessThan(stats.size);
+      expect(req.file.bucket, bucket);
+      expect(req.file.etag).to.equal('mock-etag');
+      expect(req.file.location).to.equal('mock-location');
 
       done();
     });
@@ -94,32 +98,37 @@ describe('Multer S3', () => {
   it('uploads file with AES256 server-side encryption', done => {
     const s3 = mockS3();
     const form = new FormData();
+    const bucket = 'test';
+    const serverSideEncryption = 'AES256';
     const storage = multerS3({
       s3,
-      bucket: 'test',
-      serverSideEncryption: 'AES256'
+      bucket,
+      serverSideEncryption
     });
     const upload = multer({ storage });
     const parser = upload.single('image');
-    const image = fs.createReadStream(
-      path.join(__dirname, 'files', 'ffffff.png')
-    );
+    const filename = 'test.jpeg';
+    const image = fs.createReadStream(path.join(__dirname, 'files', filename));
+    const stats = fs.statSync(image.path);
 
     form.append('name', 'Multer');
     form.append('image', image);
 
     submitForm(parser, form, (err, req) => {
-      assert.ifError(err);
+      // eslint-disable-next-line no-unused-expressions
+      expect(err).to.be.undefined;
 
-      assert.equal(req.body.name, 'Multer');
+      console.log('Compressed file size:', req.file.size);
+      console.log('Compression ratio:', stats.size / req.file.size);
 
-      assert.equal(req.file.fieldname, 'image');
-      assert.equal(req.file.originalname, 'ffffff.png');
-      assert.equal(req.file.size, 68);
-      assert.equal(req.file.bucket, 'test');
-      assert.equal(req.file.etag, 'mock-etag');
-      assert.equal(req.file.location, 'mock-location');
-      assert.equal(req.file.serverSideEncryption, 'AES256');
+      expect(req.body.name).to.equal('Multer');
+      expect(req.file.fieldname).to.equal('image');
+      expect(req.file.originalname).to.equal(filename);
+      expect(req.file.size).to.be.lessThan(stats.size);
+      expect(req.file.bucket, bucket);
+      expect(req.file.etag).to.equal('mock-etag');
+      expect(req.file.location).to.equal('mock-location');
+      expect(req.file.serverSideEncryption, serverSideEncryption);
 
       done();
     });
@@ -128,68 +137,70 @@ describe('Multer S3', () => {
   it('uploads file with AWS KMS-managed server-side encryption', done => {
     const s3 = mockS3();
     const form = new FormData();
+    const bucket = 'test';
+    const serverSideEncryption = 'aws:kms';
     const storage = multerS3({
       s3,
-      bucket: 'test',
-      serverSideEncryption: 'aws:kms'
+      bucket,
+      serverSideEncryption
     });
     const upload = multer({ storage });
     const parser = upload.single('image');
-    const image = fs.createReadStream(
-      path.join(__dirname, 'files', 'ffffff.png')
-    );
+    const filename = 'test.jpeg';
+    const image = fs.createReadStream(path.join(__dirname, 'files', filename));
+    const stats = fs.statSync(image.path);
 
     form.append('name', 'Multer');
     form.append('image', image);
 
     submitForm(parser, form, (err, req) => {
-      assert.ifError(err);
+      // eslint-disable-next-line no-unused-expressions
+      expect(err).to.be.undefined;
 
-      assert.equal(req.body.name, 'Multer');
+      console.log('Compressed file size:', req.file.size);
+      console.log('Compression ratio:', stats.size / req.file.size);
 
-      assert.equal(req.file.fieldname, 'image');
-      assert.equal(req.file.originalname, 'ffffff.png');
-      assert.equal(req.file.size, 68);
-      assert.equal(req.file.bucket, 'test');
-      assert.equal(req.file.etag, 'mock-etag');
-      assert.equal(req.file.location, 'mock-location');
-      assert.equal(req.file.serverSideEncryption, 'aws:kms');
+      expect(req.body.name).to.equal('Multer');
+      expect(req.file.fieldname).to.equal('image');
+      expect(req.file.originalname).to.equal(filename);
+      expect(req.file.size).to.be.lessThan(stats.size);
+      expect(req.file.bucket, bucket);
+      expect(req.file.etag).to.equal('mock-etag');
+      expect(req.file.location).to.equal('mock-location');
+      expect(req.file.serverSideEncryption, serverSideEncryption);
 
       done();
     });
   });
 
-  it('uploads PNG file with correct content-type', done => {
+  it('uploads PNG file', done => {
     const s3 = mockS3();
     const form = new FormData();
-    const storage = multerS3({
-      s3,
-      bucket: 'test',
-      serverSideEncryption: 'aws:kms',
-      contentType: multerS3.AUTO_CONTENT_TYPE
-    });
+    const bucket = 'test';
+    const storage = multerS3({ s3, bucket });
     const upload = multer({ storage });
     const parser = upload.single('image');
-    const image = fs.createReadStream(
-      path.join(__dirname, 'files', 'ffffff.png')
-    );
+    const filename = 'test.png';
+    const image = fs.createReadStream(path.join(__dirname, 'files', filename));
+    const stats = fs.statSync(image.path);
 
     form.append('name', 'Multer');
     form.append('image', image);
 
     submitForm(parser, form, (err, req) => {
-      assert.ifError(err);
+      // eslint-disable-next-line no-unused-expressions
+      expect(err).to.be.undefined;
 
-      assert.equal(req.body.name, 'Multer');
+      console.log('Compressed file size:', req.file.size);
+      console.log('Compression ratio:', stats.size / req.file.size);
 
-      assert.equal(req.file.fieldname, 'image');
-      assert.equal(req.file.contentType, 'image/png');
-      assert.equal(req.file.originalname, 'ffffff.png');
-      assert.equal(req.file.size, 68);
-      assert.equal(req.file.bucket, 'test');
-      assert.equal(req.file.etag, 'mock-etag');
-      assert.equal(req.file.location, 'mock-location');
-      assert.equal(req.file.serverSideEncryption, 'aws:kms');
+      expect(req.body.name).to.equal('Multer');
+      expect(req.file.fieldname).to.equal('image');
+      expect(req.file.originalname).to.equal(filename);
+      expect(req.file.size).to.be.lessThan(stats.size);
+      expect(req.file.bucket, bucket);
+      expect(req.file.etag).to.equal('mock-etag');
+      expect(req.file.location).to.equal('mock-location');
 
       done();
     });
@@ -198,34 +209,36 @@ describe('Multer S3', () => {
   it('uploads SVG file with correct content-type', done => {
     const s3 = mockS3();
     const form = new FormData();
+    const bucket = 'test';
+    const serverSideEncryption = 'aws:kms';
     const storage = multerS3({
       s3,
-      bucket: 'test',
-      serverSideEncryption: 'aws:kms',
+      bucket,
+      serverSideEncryption,
       contentType: multerS3.AUTO_CONTENT_TYPE
     });
     const upload = multer({ storage });
     const parser = upload.single('image');
-    const image = fs.createReadStream(
-      path.join(__dirname, 'files', 'test.svg')
-    );
+    const filename = 'test.svg';
+    const image = fs.createReadStream(path.join(__dirname, 'files', filename));
+    const stats = fs.statSync(image.path);
 
     form.append('name', 'Multer');
     form.append('image', image);
 
     submitForm(parser, form, (err, req) => {
-      assert.ifError(err);
+      // eslint-disable-next-line no-unused-expressions
+      expect(err).to.be.undefined;
 
-      assert.equal(req.body.name, 'Multer');
-
-      assert.equal(req.file.fieldname, 'image');
-      assert.equal(req.file.contentType, 'image/svg+xml');
-      assert.equal(req.file.originalname, 'test.svg');
-      assert.equal(req.file.size, 100);
-      assert.equal(req.file.bucket, 'test');
-      assert.equal(req.file.etag, 'mock-etag');
-      assert.equal(req.file.location, 'mock-location');
-      assert.equal(req.file.serverSideEncryption, 'aws:kms');
+      expect(req.body.name).to.equal('Multer');
+      expect(req.file.fieldname).to.equal('image');
+      expect(req.file.contentType).to.equal('image/svg+xml');
+      expect(req.file.originalname).to.equal(filename);
+      expect(req.file.size).to.equal(stats.size);
+      expect(req.file.bucket, bucket);
+      expect(req.file.etag).to.equal('mock-etag');
+      expect(req.file.location).to.equal('mock-location');
+      expect(req.file.serverSideEncryption, serverSideEncryption);
 
       done();
     });

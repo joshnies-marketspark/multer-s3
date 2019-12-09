@@ -3,6 +3,11 @@ const stream = require('stream');
 const fileType = require('file-type');
 const isSvg = require('is-svg');
 const parallel = require('run-parallel');
+const streamifier = require('streamifier');
+const imagemin = require('imagemin');
+const imageminMozjpeg = require('imagemin-mozjpeg');
+const imageminPngquant = require('imagemin-pngquant');
+const imageminGifsicle = require('imagemin-gifsicle');
 
 function staticValue(value) {
   return (req, file, cb) => {
@@ -250,10 +255,13 @@ class S3Storage {
     }
   }
 
-  _handleFile(req, file, cb) {
-    collect(this, req, file, (err, opts) => {
-      if (err) return cb(err);
+  uploadToS3(opts, cb, file, compressed) {
+    const fileStream = compressed
+      ? streamifier.createReadStream(compressed)
+      : opts.replacementStream || file.stream;
 
+    try {
+      // Upload to S3
       let currentSize = 0;
       const params = {
         Bucket: opts.bucket,
@@ -265,7 +273,7 @@ class S3Storage {
         StorageClass: opts.storageClass,
         ServerSideEncryption: opts.serverSideEncryption,
         SSEKMSKeyId: opts.sseKmsKeyId,
-        Body: opts.replacementStream || file.stream
+        Body: fileStream
       };
 
       if (opts.contentDisposition) {
@@ -280,6 +288,7 @@ class S3Storage {
 
       upload.send((sendErr, result) => {
         if (sendErr) return cb(sendErr);
+
         return cb(null, {
           size: currentSize,
           bucket: opts.bucket,
@@ -294,6 +303,50 @@ class S3Storage {
           etag: result.ETag,
           versionId: result.VersionId
         });
+      });
+    } catch (s3Err) {
+      console.log('ERROR: S3 upload failed.');
+      console.error(s3Err);
+    }
+  }
+
+  _handleFile(req, file, cb) {
+    collect(this, req, file, (err, opts) => {
+      if (err) return cb(err);
+
+      const chunks = [];
+
+      file.stream.on('data', chunk => {
+        chunks.push(chunk);
+      });
+
+      file.stream.once('end', () => {
+        const buffer = Buffer.concat(chunks);
+        const ext = file.originalname
+          .split('.')
+          .pop()
+          .toLowerCase();
+
+        // Compress if image
+        if (['jpeg', 'jpg', 'png'].includes(ext)) {
+          imagemin
+            .buffer(buffer, {
+              plugins: [
+                imageminMozjpeg(),
+                imageminPngquant({
+                  quality: [0.6, 0.8]
+                })
+              ]
+            })
+            .then(compressed => this.uploadToS3(opts, cb, file, compressed))
+            .catch(compressErr => {
+              console.error('ERROR: Compression failed.');
+              console.error(compressErr);
+              cb(compressErr);
+            });
+        } else {
+          this.uploadToS3(opts, cb, file);
+        }
       });
 
       return null;
