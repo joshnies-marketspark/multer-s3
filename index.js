@@ -328,14 +328,15 @@ class S3Storage {
           .toLowerCase();
 
         // Compress if image
-        if (['jpeg', 'jpg', 'png'].includes(ext)) {
+        if (['jpeg', 'jpg', 'png', 'gif'].includes(ext)) {
           imagemin
             .buffer(buffer, {
               plugins: [
                 imageminMozjpeg(),
                 imageminPngquant({
                   quality: [0.6, 0.8]
-                })
+                }),
+                imageminGifsicle()
               ]
             })
             .then(compressed => this.uploadToS3(opts, cb, file, compressed))

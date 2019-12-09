@@ -243,4 +243,43 @@ describe('Multer S3', () => {
       done();
     });
   });
+
+  it('uploads GIF file', done => {
+    const s3 = mockS3();
+    const form = new FormData();
+    const bucket = 'test';
+    const serverSideEncryption = 'AES256';
+    const storage = multerS3({
+      s3,
+      bucket,
+      serverSideEncryption
+    });
+    const upload = multer({ storage });
+    const parser = upload.single('image');
+    const filename = 'test.gif';
+    const image = fs.createReadStream(path.join(__dirname, 'files', filename));
+    const stats = fs.statSync(image.path);
+
+    form.append('name', 'Multer');
+    form.append('image', image);
+
+    submitForm(parser, form, (err, req) => {
+      // eslint-disable-next-line no-unused-expressions
+      expect(err).to.be.undefined;
+
+      console.log('Compressed file size:', req.file.size);
+      console.log('Compression ratio:', stats.size / req.file.size);
+
+      expect(req.body.name).to.equal('Multer');
+      expect(req.file.fieldname).to.equal('image');
+      expect(req.file.originalname).to.equal(filename);
+      expect(req.file.size).to.be.lessThan(stats.size);
+      expect(req.file.bucket, bucket);
+      expect(req.file.etag).to.equal('mock-etag');
+      expect(req.file.location).to.equal('mock-location');
+      expect(req.file.serverSideEncryption, serverSideEncryption);
+
+      done();
+    });
+  });
 });
