@@ -263,13 +263,17 @@ class S3Storage {
     try {
       // Upload to S3
       let currentSize = 0;
+
       const params = {
         Bucket: opts.bucket,
         Key: opts.key,
         ACL: opts.acl,
         CacheControl: opts.cacheControl,
         ContentType: opts.contentType,
-        Metadata: opts.metadata,
+        Metadata: {
+          ...opts.metadata,
+          originalName: opts.metadata.originalName.replace(/[^ -~]+/g, '')
+        },
         StorageClass: opts.storageClass,
         ServerSideEncryption: opts.serverSideEncryption,
         SSEKMSKeyId: opts.sseKmsKeyId,
@@ -279,6 +283,9 @@ class S3Storage {
       if (opts.contentDisposition) {
         params.ContentDisposition = opts.contentDisposition;
       }
+
+      // DEBUG
+      console.log('METADATA (params):\n', params);
 
       const upload = this.s3.upload(params);
 
