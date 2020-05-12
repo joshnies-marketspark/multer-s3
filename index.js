@@ -284,9 +284,6 @@ class S3Storage {
         params.ContentDisposition = opts.contentDisposition;
       }
 
-      // DEBUG
-      console.log('METADATA (params):\n', params);
-
       const upload = this.s3.upload(params);
 
       upload.on('httpUploadProgress', ev => {
